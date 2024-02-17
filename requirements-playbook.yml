@@ -1,0 +1,10 @@
+    - name: Requirements-Playbook
+      hosts: debian-server
+      remote_user: root
+      vars_files: ./group_vars/variables.yml
+      gather_facts: yes # You may not need this if you have fact gathering disabled in your ansible.cfg
+      connection: ssh # Change to 'paramiko' if you face any issues
+      vars:
+        ansible_ssh_private_key_file: "{{ ssh_location }}"
+      roles:
+        - requirements
