@@ -1,3 +1,0 @@
-- name: Include admin user setup role
-  ansible.builtin.include_role:
-    name: admin_user
