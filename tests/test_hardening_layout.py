@@ -145,7 +145,7 @@ class HardeningLayoutTest(unittest.TestCase):
             "sk" + "-live-",
             "ts" + "key-",
         ]
-        email_pattern = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}")
+        email_pattern = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
         for test_file in (ROOT / "tests").glob("*.py"):
             content = test_file.read_text(encoding="utf-8")
             for literal in forbidden_literals:
