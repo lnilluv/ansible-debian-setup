@@ -1,2 +1,4 @@
 tailscale_advertise_tags: []
 tailscale_stateful_args: ""
+tailscale_force_reauth: false
+tailscale_expected_tailnet: ""

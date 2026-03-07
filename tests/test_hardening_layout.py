@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import unittest
 
 
@@ -34,6 +35,42 @@ class HardeningLayoutTest(unittest.TestCase):
         self.assertIn("tailscale0", content)
         self.assertIn("bootstrap_allowed_ip", content)
         self.assertIn("bootstrap_allowed_ip | length > 0", content)
+
+    def test_firewall_role_has_fail_safe_reenable_path(self) -> None:
+        content = (ROOT / "roles" / "firewall" / "tasks" / "main.yml").read_text(encoding="utf-8")
+        self.assertIn("block:", content)
+        self.assertIn("rescue:", content)
+        self.assertIn("always:", content)
+        self.assertIn("ufw --force enable", content)
+
+    def test_firewall_role_allows_traefik_ports(self) -> None:
+        task_content = (ROOT / "roles" / "firewall" / "tasks" / "main.yml").read_text(encoding="utf-8")
+        default_content = (ROOT / "group_vars" / "all.yml").read_text(encoding="utf-8")
+        example_content = (ROOT / "group_vars" / "all.example.yml").read_text(encoding="utf-8")
+        self.assertIn("inbound_allowed_tcp_ports", task_content)
+        self.assertIn("inbound_allowed_tcp_ports:", default_content)
+        self.assertIn("- 80", default_content)
+        self.assertIn("- 443", default_content)
+        self.assertIn("inbound_allowed_tcp_ports:", example_content)
+
+    def test_ssh_role_uses_drop_in_hardening_file(self) -> None:
+        content = (ROOT / "roles" / "ssh" / "tasks" / "main.yml").read_text(encoding="utf-8")
+        self.assertIn("/etc/ssh/sshd_config.d", content)
+        self.assertIn("00-ansible-hardening.conf", content)
+        self.assertIn("Include /etc/ssh/sshd_config.d/*.conf", content)
+
+    def test_tailscale_role_supports_join_and_reconcile_paths(self) -> None:
+        content = (ROOT / "roles" / "tailscale" / "tasks" / "main.yml").read_text(encoding="utf-8")
+        defaults = (ROOT / "roles" / "tailscale" / "defaults" / "main.yml").read_text(encoding="utf-8")
+        self.assertIn("tailscale_preexisting_ipv4", content)
+        self.assertIn("tailscale status --json", content)
+        self.assertIn("tailscale_reauth_required", content)
+        self.assertIn("tailscale logout", content)
+        self.assertIn("Bring node into tailnet", content)
+        self.assertIn("Reconcile tailscale settings", content)
+        self.assertIn("no_log: true", content)
+        self.assertIn("tailscale_force_reauth", defaults)
+        self.assertIn("tailscale_expected_tailnet", defaults)
 
     def test_validation_role_exists(self) -> None:
         validation_role = ROOT / "roles" / "validation" / "tasks" / "main.yml"
@@ -105,6 +142,22 @@ class HardeningLayoutTest(unittest.TestCase):
         defaults = (ROOT / "group_vars" / "all.yml").read_text(encoding="utf-8")
         self.assertIn("tailscale_hostname: prod-vps", example)
         self.assertIn("tailscale_hostname: prod-vps", defaults)
+
+    def test_tests_do_not_include_private_literals(self) -> None:
+        forbidden_literals = [
+            "BEGIN " + "OPENSSH PRIVATE KEY",
+            "BEGIN " + "RSA PRIVATE KEY",
+            "gh" + "p_",
+            "sk" + "-live-",
+            "ts" + "key-",
+        ]
+        email_pattern = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+        for test_file in (ROOT / "tests").glob("*.py"):
+            content = test_file.read_text(encoding="utf-8")
+            for literal in forbidden_literals:
+                self.assertNotIn(literal, content, f"{test_file} contains sensitive literal: {literal}")
+            for email in email_pattern.findall(content):
+                self.assertTrue(email.endswith("@example.com"), f"{test_file} contains non-placeholder email: {email}")
 
 
 if __name__ == "__main__":
