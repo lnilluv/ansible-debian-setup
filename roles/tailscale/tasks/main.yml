@@ -25,14 +25,32 @@
     enabled: true
     state: started
 
+- name: Query tailscale status before join
+  ansible.builtin.command: tailscale ip -4
+  register: tailscale_preexisting_ipv4
+  failed_when: false
+  changed_when: false
+
 - name: Bring node into tailnet
   ansible.builtin.command: >-
     tailscale up --authkey={{ tailscale_authkey }} --ssh
     --hostname={{ tailscale_hostname }}
     {% if tailscale_advertise_tags | length > 0 %} --advertise-tags={{ tailscale_advertise_tags | join(',') }}{% endif %}
     {{ tailscale_stateful_args }}
-  register: tailscale_up
-  changed_when: "'Success.' in tailscale_up.stdout or 'Logged in' in tailscale_up.stdout"
+  no_log: true
+  register: tailscale_join
+  changed_when: "'Success.' in tailscale_join.stdout or 'Logged in' in tailscale_join.stdout"
+  when: tailscale_preexisting_ipv4.rc != 0 or (tailscale_preexisting_ipv4.stdout | trim | length == 0)
+
+- name: Reconcile tailscale settings
+  ansible.builtin.command: >-
+    tailscale up --ssh
+    --hostname={{ tailscale_hostname }}
+    {% if tailscale_advertise_tags | length > 0 %} --advertise-tags={{ tailscale_advertise_tags | join(',') }}{% endif %}
+    {{ tailscale_stateful_args }}
+  register: tailscale_reconcile
+  changed_when: "'Success.' in tailscale_reconcile.stdout or 'Logged in' in tailscale_reconcile.stdout"
+  when: tailscale_preexisting_ipv4.rc == 0 and (tailscale_preexisting_ipv4.stdout | trim | length > 0)
 
 - name: Query tailscale status
   ansible.builtin.command: tailscale ip -4

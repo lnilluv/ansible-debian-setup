@@ -3,11 +3,27 @@
     name: sshusers
     state: present
 
-- name: Configure secure sshd options
-  ansible.builtin.blockinfile:
+- name: Ensure sshd drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    mode: "0755"
+
+- name: Ensure sshd main config includes drop-ins
+  ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
-    marker: "# {mark} ANSIBLE SSH HARDENING"
-    block: |
+    regexp: '^#?Include /etc/ssh/sshd_config\.d/\*\.conf$'
+    line: Include /etc/ssh/sshd_config.d/*.conf
+    insertbefore: BOF
+  notify:
+    - validate ssh config
+    - restart ssh service
+
+- name: Install hardened sshd drop-in config
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/00-ansible-hardening.conf
+    mode: "0644"
+    content: |
       Port {{ ssh_port }}
       PermitRootLogin no
       PasswordAuthentication no
@@ -27,6 +43,23 @@
       ClientAliveCountMax 0
       LoginGraceTime 20
       AllowGroups sshusers
+  notify:
+    - validate ssh config
+    - restart ssh service
+
+- name: Remove deprecated sshd drop-in filename
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d/99-ansible-hardening.conf
+    state: absent
+  notify:
+    - validate ssh config
+    - restart ssh service
+
+- name: Remove legacy inline ssh hardening block
+  ansible.builtin.blockinfile:
+    path: /etc/ssh/sshd_config
+    marker: "# {mark} ANSIBLE SSH HARDENING"
+    state: absent
   notify:
     - validate ssh config
     - restart ssh service

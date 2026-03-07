@@ -17,6 +17,10 @@ portfolio_dev_packages:
   - tmux
   - python3-venv
   - python3-pip
+inbound_allowed_tcp_ports:
+  - 80
+  - 443
+inbound_allowed_udp_ports: []
 outbound_allowed_tcp_ports:
   - 53
   - 80

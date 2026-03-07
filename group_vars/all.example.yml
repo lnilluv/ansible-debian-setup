@@ -16,6 +16,17 @@ portfolio_dev_packages:
   - tmux
   - python3-venv
   - python3-pip
+inbound_allowed_tcp_ports:
+  - 80
+  - 443
+inbound_allowed_udp_ports: []
+outbound_allowed_tcp_ports:
+  - 53
+  - 80
+  - 443
+outbound_allowed_udp_ports:
+  - 53
+  - 123
 
 # Required runtime inputs
 target_vps_ip: "203.0.113.10"

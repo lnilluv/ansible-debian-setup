@@ -40,6 +40,11 @@ ansible-galaxy collection install ansible.posix
 
 Base defaults live in `group_vars/all.yml`.
 
+Firewall defaults are tuned to avoid Traefik breakage:
+
+- incoming web ports `80` and `443` are allowed via `inbound_allowed_tcp_ports`,
+- outbound default remains allow, with explicit outbound allow lists still configurable.
+
 By default, bootstrap also installs portfolio runtime tooling:
 
 - Docker Engine (`docker-ce`, `docker-ce-cli`, `containerd.io`)
@@ -141,5 +146,5 @@ If you lose Tailscale connectivity, use the VPS provider console to:
 
 ## Notes
 
-- `group_vars/all.vault.yml` is intended for secrets via `ansible-vault`.
+- `group_vars/all.vault.yml` is reserved for secrets via `ansible-vault`; pass it explicitly (for example `-e @group_vars/all.vault.yml`).
 - `.gitignore` blocks local secret files and worktrees.
