@@ -61,10 +61,16 @@ class HardeningLayoutTest(unittest.TestCase):
 
     def test_tailscale_role_supports_join_and_reconcile_paths(self) -> None:
         content = (ROOT / "roles" / "tailscale" / "tasks" / "main.yml").read_text(encoding="utf-8")
+        defaults = (ROOT / "roles" / "tailscale" / "defaults" / "main.yml").read_text(encoding="utf-8")
         self.assertIn("tailscale_preexisting_ipv4", content)
+        self.assertIn("tailscale status --json", content)
+        self.assertIn("tailscale_reauth_required", content)
+        self.assertIn("tailscale logout", content)
         self.assertIn("Bring node into tailnet", content)
         self.assertIn("Reconcile tailscale settings", content)
         self.assertIn("no_log: true", content)
+        self.assertIn("tailscale_force_reauth", defaults)
+        self.assertIn("tailscale_expected_tailnet", defaults)
 
     def test_validation_role_exists(self) -> None:
         validation_role = ROOT / "roles" / "validation" / "tasks" / "main.yml"

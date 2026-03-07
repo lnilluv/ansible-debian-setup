@@ -31,6 +31,31 @@
   failed_when: false
   changed_when: false
 
+- name: Query tailscale status metadata
+  ansible.builtin.command: tailscale status --json
+  register: tailscale_status_json
+  failed_when: false
+  changed_when: false
+
+- name: Decide whether tailscale re-authentication is required
+  ansible.builtin.set_fact:
+    tailscale_reauth_required: >-
+      {{
+        tailscale_force_reauth | bool
+        or (
+          tailscale_expected_tailnet | length > 0
+          and tailscale_preexisting_ipv4.rc == 0
+          and (tailscale_preexisting_ipv4.stdout | trim | length > 0)
+          and ((tailscale_status_json.stdout | default('')) is not search(tailscale_expected_tailnet))
+        )
+      }}
+
+- name: Log out from tailscale before forced re-authentication
+  ansible.builtin.command: tailscale logout
+  changed_when: false
+  failed_when: false
+  when: tailscale_reauth_required
+
 - name: Bring node into tailnet
   ansible.builtin.command: >-
     tailscale up --authkey={{ tailscale_authkey }} --ssh
@@ -40,7 +65,7 @@
   no_log: true
   register: tailscale_join
   changed_when: "'Success.' in tailscale_join.stdout or 'Logged in' in tailscale_join.stdout"
-  when: tailscale_preexisting_ipv4.rc != 0 or (tailscale_preexisting_ipv4.stdout | trim | length == 0)
+  when: tailscale_reauth_required or tailscale_preexisting_ipv4.rc != 0 or (tailscale_preexisting_ipv4.stdout | trim | length == 0)
 
 - name: Reconcile tailscale settings
   ansible.builtin.command: >-
@@ -50,7 +75,10 @@
     {{ tailscale_stateful_args }}
   register: tailscale_reconcile
   changed_when: "'Success.' in tailscale_reconcile.stdout or 'Logged in' in tailscale_reconcile.stdout"
-  when: tailscale_preexisting_ipv4.rc == 0 and (tailscale_preexisting_ipv4.stdout | trim | length > 0)
+  when:
+    - not tailscale_reauth_required
+    - tailscale_preexisting_ipv4.rc == 0
+    - tailscale_preexisting_ipv4.stdout | trim | length > 0
 
 - name: Query tailscale status
   ansible.builtin.command: tailscale ip -4
